@@ -1,3 +1,5 @@
+-- ia_util/appliances.lua
+
 function ia_util.appliances_cb_on_production(self, timer_step)
     -- [2026-02-27] Assertions to make API assumptions explicit and catch inconsistencies
     assert(timer_step, "cb_on_production: timer_step is missing")

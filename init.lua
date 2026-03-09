@@ -19,7 +19,8 @@ end
 function ia_util.file_error(path, err)
 	assert(path ~= nil)
 	local message            = ia_util.format_file_error(path, err)
-	error(err)
+	--error(err)
+	error(message)
 end
 
 local function handle_loadfile_error(path, chunk, err)
