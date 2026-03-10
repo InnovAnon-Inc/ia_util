@@ -55,8 +55,9 @@ end
 
 function ia_util.dofile(file)
 	assert(file ~= nil)
-	local chunk,  err        = ia_util.loadfile(file)
-	local status, err        = ia_util.pcall   (file, chunk)
+	--local chunk,  err        = ia_util.loadfile(file)
+	--local status, err        = ia_util.pcall   (file, chunk)
+	dofile(file)
 	-- TODO log file as done ?
 end
 
