@@ -1,60 +1,103 @@
 -- ia_util/appliances.lua
 
+--function ia_util.appliances_cb_on_production(self, timer_step)
+--    -- [2026-02-27] Assertions to make API assumptions explicit and catch inconsistencies
+--    assert(timer_step, "cb_on_production: timer_step is missing")
+--    assert(timer_step.pos, "cb_on_production: timer_step.pos is missing")
+--    assert(timer_step.meta, "cb_on_production: timer_step.meta is missing")
+--    assert(timer_step.inv, "cb_on_production: timer_step.inv is missing")
+--
+--    local pos = timer_step.pos
+--    local meta = timer_step.meta
+--    local inv = timer_step.inv
+--
+--    -- [2026-02-28] Log attempt to process production to aid in debugging if logic fails
+--    --minetest.log("action", "[fakery] refinery_lv:cb_on_production triggered at " .. minetest.pos_to_string(pos))
+--
+--    -- Integration logic for Pipeworks and Technic
+--    assert(minetest.get_modpath("pipeworks"))
+--    assert(minetest.get_modpath("technic"))
+--    --if minetest.get_modpath("pipeworks") and minetest.get_modpath("technic") then
+--        local node = minetest.get_node(pos)
+--        local x_velocity = 0
+--        local z_velocity = 0
+--
+--        -- Direction logic: Eject to the LEFT side relative to the machine's face.
+--        -- Derived from technic.handle_machine_pipeworks
+--        if node.param2 == 3 then z_velocity = -1 end
+--        if node.param2 == 2 then x_velocity = -1 end
+--        if node.param2 == 1 then z_velocity =  1 end
+--        if node.param2 == 0 then x_velocity =  1 end
+--
+--        -- Check for a receiving tube at the output position
+--        local pos1 = vector.add(pos, {x = x_velocity, y = 0, z = z_velocity})
+--        local node1 = minetest.get_node(pos1)
+--
+--        if minetest.get_item_group(node1.name, "tubedevice") > 0 then
+--            -- Use the stack name defined in the appliance instance (e.g., "output" or "dst")
+--            local list = inv:get_list(self.output_stack)
+--
+--            local has_items = false
+--            if list then
+--                for _, stack in ipairs(list) do
+--                    if not stack:is_empty() then
+--                        has_items = true
+--                        break
+--                    end
+--                end
+--            end
+--
+--            if has_items then
+--                -- [2026-03-06] Use Technic's native item handler to inject into the network.
+--                -- This handles inventory removal and Pipeworks entity spawning.
+--                --technic.send_items(pos, x_velocity, z_velocity, 'output') -- TODO theoretically, out could be output_stack name aware
+--                technic.send_items(pos, x_velocity, z_velocity, self.output_stack)
+--            end
+--        end
+--    --end
+--end
 function ia_util.appliances_cb_on_production(self, timer_step)
-    -- [2026-02-27] Assertions to make API assumptions explicit and catch inconsistencies
     assert(timer_step, "cb_on_production: timer_step is missing")
     assert(timer_step.pos, "cb_on_production: timer_step.pos is missing")
-    assert(timer_step.meta, "cb_on_production: timer_step.meta is missing")
     assert(timer_step.inv, "cb_on_production: timer_step.inv is missing")
 
     local pos = timer_step.pos
-    local meta = timer_step.meta
     local inv = timer_step.inv
 
-    -- [2026-02-28] Log attempt to process production to aid in debugging if logic fails
-    --minetest.log("action", "[fakery] refinery_lv:cb_on_production triggered at " .. minetest.pos_to_string(pos))
+    assert(minetest.get_modpath("pipeworks"), "Pipeworks is required for automated output")
+    assert(minetest.get_modpath("technic"), "Technic is required for automated output")
 
-    -- Integration logic for Pipeworks and Technic
-    assert(minetest.get_modpath("pipeworks"))
-    assert(minetest.get_modpath("technic"))
-    --if minetest.get_modpath("pipeworks") and minetest.get_modpath("technic") then
-        local node = minetest.get_node(pos)
-        local x_velocity = 0
-        local z_velocity = 0
+    local node = minetest.get_node(pos)
+    local x_velocity = 0
+    local z_velocity = 0
 
-        -- Direction logic: Eject to the LEFT side relative to the machine's face.
-        -- Derived from technic.handle_machine_pipeworks
-        if node.param2 == 3 then z_velocity = -1 end
-        if node.param2 == 2 then x_velocity = -1 end
-        if node.param2 == 1 then z_velocity =  1 end
-        if node.param2 == 0 then x_velocity =  1 end
+    -- Direction logic: Eject to the LEFT side relative to the machine's face
+    if node.param2 == 3 then z_velocity = -1 end
+    if node.param2 == 2 then x_velocity = -1 end
+    if node.param2 == 1 then z_velocity =  1 end
+    if node.param2 == 0 then x_velocity =  1 end
 
-        -- Check for a receiving tube at the output position
-        local pos1 = vector.add(pos, {x = x_velocity, y = 0, z = z_velocity})
-        local node1 = minetest.get_node(pos1)
+    local pos1 = vector.add(pos, {x = x_velocity, y = 0, z = z_velocity})
+    local node1 = minetest.get_node(pos1)
 
-        if minetest.get_item_group(node1.name, "tubedevice") > 0 then
-            -- Use the stack name defined in the appliance instance (e.g., "output" or "dst")
-            local list = inv:get_list(self.output_stack)
+    -- Only proceed if there is a tubedevice to receive items
+    if minetest.get_item_group(node1.name, "tubedevice") > 0 then
+        local list = inv:get_list(self.output_stack)
+        if not list then return end
 
-            local has_items = false
-            if list then
-                for _, stack in ipairs(list) do
-                    if not stack:is_empty() then
-                        has_items = true
-                        break
-                    end
-                end
-            end
-
-            if has_items then
-                -- [2026-03-06] Use Technic's native item handler to inject into the network.
-                -- This handles inventory removal and Pipeworks entity spawning.
-                --technic.send_items(pos, x_velocity, z_velocity, 'output') -- TODO theoretically, out could be output_stack name aware
+        -- [2026-03-06] Loop through all slots in the output stack.
+        -- technic.send_items only sends one stack per call. 
+        -- We loop to ensure Juice, Mash, and any other byproducts are ejected.
+        for slot_index, stack in ipairs(list) do
+            if not stack:is_empty() then
+                -- Attempt to send this specific stack
+                -- Note: Technic's send_items logic normally pulls the first item it finds.
+                -- To ensure we get the specific slot, we use the Technic helper directly 
+                -- or call send_items multiple times.
                 technic.send_items(pos, x_velocity, z_velocity, self.output_stack)
             end
         end
-    --end
+    end
 end
 
 
