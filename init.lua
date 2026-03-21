@@ -1,6 +1,7 @@
 -- ia_util/init.lua
 
 ia_util                          = {}
+ia_util.mod                      = 'ia'
 ia_util.mod_dir_blacklist        = { 'init.lua' }
 
 function ia_util.get_header_vars(modname)
